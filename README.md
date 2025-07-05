@@ -1,133 +1,120 @@
-### Task: Automate the Prior Authorization (PA) Form Filling Workflow
+# Automated PA Form Filling – Implementation Guide
+
+## Overview
+
+This repository contains a **Python pipeline to automate the filling of Prior Authorization (PA) PDF forms** using structured answer data. The solution is designed to be **generic**: it works with any widget-based (fillable) PDF form, as long as you provide a JSON file mapping each field name to its answer.
 
 ---
 
-### **Purpose of this assignment**
-
-This task is designed to assess the candidate's skills, creativity, and problem-solving abilities in a practical setting. Specifically, we are looking for:
-
-1. The ability to quickly learn and adapt to domain knowledge (in this case, healthcare) from a new vertical.
-2. Existing skills and knowledge in building multimodal ML pipelines.
-3. The capacity to think outside of the box, discovering novel solutions when existing methods fall short.
-4. The ability to effectively leverage existing resources, tools, and libraries to resolve challenges.
-5. Strong fundamental coding skills, including clean, readable, and maintainable code.
-6. Thoughtful handling of ambiguous or incomplete requirements, demonstrating sound judgment in decision-making.
-
-### Background:
-
-**Prior Authorization (PA)** is a process where healthcare providers must obtain approval from a health insurance plan before delivering a specific service (e.g., a drug infusion) to a patient. This process requires assembling evidence to demonstrate that the patient meets specific criteria, such as:
-
-- **Severity of illness**
-- **Ineffectiveness of alternative treatments**
-
-The process typically involves comparing two main documents:
-
-1. **PA Form:**  
-   A structured PDF form specific to a drug, containing fields for the required information needed for insurance approval.
-
-2. **Supporting Documentation (Referral Package):**  
-   A collection of scanned documents such as:
-   - Insurance card
-   - Medical history notes
-   - Test results  
-     These are combined into a single PDF, often sent via fax as high-resolution images.
-
-After comparing the documents and confirming that all criteria are met, the PA request is submitted.
-
----
-
-### Current Manual Workflow:
-
-Currently, a human worker performs the following steps:
-
-1. **Download the PA Form:**  
-   Retrieve the specific drug's form from the insurance company's website.
-
-2. **Review the Referral Package:**  
-   Extract necessary information from the referral package to complete the PA form.
-
-3. **Complete the PA Form:**  
-   Fill in the required fields on the PA form using information from the referral package.
-
----
-
-### Goal:
-
-Develop a pipeline to automate this workflow.
+## How It Works
 
 - **Input:**  
-  Pairs of PA forms and referral packages provided in the input data folder. Input data structure is as follow:
+  - A fillable PDF form (e.g., `PA.pdf`)
+  - An `answers.json` file containing a list of objects, each with:
+    - `"name"`: the exact PDF field name
+    - `"answer"`: the value to fill in that field
 
-      📁 Input Data
-
-          📁 Patient A
-
-              📄 PA.pdf
-
-              📄 referral_package.pdf
-
-          📁 Patient B
-
-              📄 PA.pdf
-
-              📄 referral_package.pdf
-
-          📁 Patient C
-
-              ...
-
-  The dataset includes approximately 10 referrals and 10 different types of forms for different drugs from different insurance companies. **The pipeline should be designed to generalize to any form and any drug, even those unseen during development.**
-
-- **Output:**
-  - For each patient, the primary output is a **filled PA form as a PDF document**. This PDF will be populated with information extracted and inferred from the provided referral package. Fields for which information could not be found will remain blank on the form.
-  - Accompanying the filled PDF, a **separate report (e.g., a text or markdown file) must be generated for each patient, listing any required fields for which information was missing** from the referral package. This report will clearly indicate what information could not be populated.
-  - The example image below illustrates the general appearance of a filled PA form. Your pipeline will generate the actual filled PDF document.
-    ![Alt text](image/image1.png)
+- **Output:**  
+  - A filled PDF form (`filled_pa_form.pdf`) with all matching fields populated.
 
 ---
 
-### Notes:
+## Implementation Details
 
-1. **Referral Package Complexity:**
+- **No Hardcoded Mapping:**  
+  The script does **not** use any hardcoded field label-to-name mapping. It simply matches the `"name"` in your `answers.json` to the PDF field name.
+- **Generic & Portable:**  
+  Works with any fillable PDF form, as long as your JSON uses the correct field names.
+- **Supported Field Types:**  
+  - Text fields (including type 2 and 7 in PyMuPDF)
+  - Checkboxes (type 1)
+- **Debug Output:**  
+  The script prints which fields are found, which are filled, and which are skipped or missing.
 
-   - These packages consist of multiple scanned documents combined into a single PDF.
-   - Since these are high-resolution images, text cannot be directly extracted using standard PDF libraries (e.g., PyMuPDF). Optical Character Recognition (OCR) is required.
+---
 
-2. **PA Form Structure:**
+## Usage
 
-   - Unlike referral packages, PA forms are well-structured PDFs with retrievable text blocks, making field identification more straightforward.
+### 1. Prepare Your Files
 
-3. **PA Fields Format:**
+- Place your fillable PDF (e.g., `Input Data/Adbulla/PA.pdf`) in the appropriate folder.
+- Create an `answers.json` file like this:
+  ```json
+  [
+    {"name": "T12", "answer": "John"},
+    {"name": "T13", "answer": "Doe"},
+    {"name": "CB1", "answer": "Yes"}
+    // ...
+  ]
+  ```
 
-   - Not every field in a PA form should be filled out. The form often contains mutually exclusive options and branching paths, particularly in checkbox sections. For example:
+### 2. Run the Script
 
-     1. If you check "New Patient", you shouldn't also check "Existing Patient"
-     2. Selecting certain options may make other sections irrelevant or inapplicable
-     3. Some sections are conditional and should only be completed based on previous answers
+```bash
+python fill_form.py
+```
 
-     The goal is to fill out only the appropriate fields based on the patient's specific situation and the logical flow of the form, not to complete every possible field.
+- The script will generate `filled_pa_form.pdf` in the current directory.
 
-4. **Form Types and Implementation Priority:**
+### 3. View the Output
 
-   - PA forms come in two formats: interactive widget-based PDFs (containing AcroForm widgets) and non-widget-based PDFs.
-   - The primary expectation is for the pipeline to work with widget-based PDFs that contain fillable form fields.
-   - While the solution should be designed to handle any form type, successfully implementing support for non-widget-based PDFs will be considered a bonus achievement.
-   - The solution should prioritize robust handling of interactive widget-based forms first, then extend capabilities to non-widget formats if possible.
+- **Use Adobe Acrobat Reader** or another full-featured PDF viewer to see the filled fields. (Some viewers, like macOS Preview, may not display filled fields.)
 
-### Delivery Requirement:
+---
 
-1. **Submission Format:**
+## Installation
 
-   - The automated pipeline, along with all supporting materials, must be submitted as a new branch named `automation-pa-filling-[your name]` in the GitHub repository. Do **not** push changes directly to the `main` branch.
+1. **Install dependencies:**
+   ```bash
+   pip install PyMuPDF
+   ```
+   or, if using conda:
+   ```bash
+   conda install -c conda-forge pymupdf
+   ```
 
-2. **Required Deliverables:**
-   - **Source Code:**
-     - Implement the complete pipeline for automating the PA form-filling workflow. Code should be modular, readable, and include appropriate comments.
-   - **Documentation:**
-     - Replace the current `README.md` file with your own documentation that includes:
-       - Step-by-step installation instructions
-       - Your thought process on how you implement
-       - Any assumptions or limitations of the implementation
-     - Additional documentation in the `docs/` folder if necessary, such as architectural diagrams, workflows, or examples of the expected outputs.
-   - **Output Examples:**
-     - Include examples of the **filled PA form PDFs** and their **corresponding missing information reports** for the sample input data. These examples will demonstrate the expected pipeline behavior and output format. It is recommended to store these example files in a dedicated directory (e.g., `output_examples/`).
+2. **Clone this repo and place your PDFs and JSON files as described above.**
+
+---
+
+## How the Code Works
+
+- Loads all answers from `answers.json` into a dictionary.
+- Opens the PDF with PyMuPDF (`fitz`).
+- Iterates through all form fields (text and checkbox).
+- If a field name matches a key in the answers, fills it with the provided value.
+- Saves the filled PDF.
+
+---
+
+## Assumptions & Limitations
+
+- **Field names in `answers.json` must match the PDF field names exactly.**
+- Only widget-based (fillable) PDFs are supported.
+- If a field is not filled, it's either missing from the JSON or not a fillable field.
+- The script does not attempt fuzzy matching or label-based matching (but can be extended to do so).
+- Some PDF viewers may not display filled fields unless you use Adobe Acrobat Reader.
+
+---
+
+## Example Output
+
+- See `filled_pa_form.pdf` for a sample filled form.
+- The script prints a summary of which fields were filled and which were skipped.
+
+---
+
+## Troubleshooting
+
+- **Fields not appearing filled?**  
+  Try opening the PDF in Adobe Acrobat Reader.
+- **Fields still blank?**  
+  Double-check that the `"name"` in your JSON matches the PDF field name.
+- **Want to fill more fields?**  
+  Add more entries to your `answers.json` with the correct field names.
+
+---
+
+## Contact
+
+For questions or improvements, open an issue or PR!
